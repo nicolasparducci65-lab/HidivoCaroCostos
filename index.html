@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CARO Control de Costos — HIDIVO</title>
+<meta name="theme-color" content="#0c447c">
+<style>
+  :root {
+    --color-bg: #f4f3ee;
+    --color-surface: #ffffff;
+    --color-border: #e2e0d8;
+    --color-text: #2c2c2a;
+    --color-text-muted: #7d7c76;
+    --color-primary: #0c447c;
+    --color-danger: #b3261e;
+    --color-success: #3b6d11;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  body { background: var(--color-bg); color: var(--color-text); font-size: 14px; }
+  .hidden { display: none !important; }
+
+  .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .auth-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 40px; max-width: 400px; width: 100%; }
+  .auth-card h1 { font-size: 22px; margin-bottom: 4px; }
+  .auth-card .subtitle { color: var(--color-text-muted); font-size: 13px; margin-bottom: 24px; }
+
+  label { display: block; font-size: 13px; font-weight: 500; margin: 14px 0 6px; }
+  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 14px; background: var(--color-surface); }
+  textarea { min-height: 70px; resize: vertical; }
+  button { width: 100%; margin-top: 18px; padding: 11px; border: none; border-radius: 8px; background: var(--color-primary); color: white; font-size: 14px; font-weight: 500; cursor: pointer; }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .btn-secundario { background: var(--color-border); color: var(--color-text); }
+
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 13px; }
+  .msg.error { background: #f8e3e2; color: var(--color-danger); }
+  .msg.success { background: #eaf3de; color: var(--color-success); }
+
+  .topbar { background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+  .topbar .brand { font-weight: 600; font-size: 16px; }
+  .topbar .usuario { font-size: 12px; color: var(--color-text-muted); }
+  .topbar button { width: auto; margin: 0; padding: 8px 14px; background: var(--color-border); color: var(--color-text); font-size: 13px; }
+
+  .contenido { max-width: 900px; margin: 0 auto; padding: 20px 16px 60px; }
+  .pills { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .pills button { width: auto; margin: 0; padding: 8px 16px; background: var(--color-surface); color: var(--color-text-muted); border: 1px solid var(--color-border); font-size: 13px; }
+  .pills button.activa { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+
+  .factura-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; }
+  .factura-card:hover { border-color: var(--color-primary); }
+  .factura-card .fila1 { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .factura-card .proveedor { font-weight: 600; }
+  .factura-card .meta { font-size: 12px; color: var(--color-text-muted); margin-top: 4px; }
+  .factura-card .monto { font-weight: 600; font-size: 15px; white-space: nowrap; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+  .badge.asignado { background: #e8f0fe; color: #0c447c; }
+  .badge.en_revision { background: #fff3cd; color: #8a6d00; }
+  .badge.clasificado { background: #eaf3de; color: var(--color-success); }
+  .badge.devuelta { background: #f8e3e2; color: var(--color-danger); }
+
+  .obs-admin { background: #f8e3e2; color: var(--color-danger); border-radius: 8px; padding: 10px 12px; font-size: 12px; margin-top: 8px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(44,44,42,0.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100; }
+  .modal-card { background: var(--color-surface); border-radius: 12px; padding: 22px; max-width: 640px; width: 100%; max-height: 92vh; overflow-y: auto; }
+  .modal-card h3 { font-size: 16px; margin-bottom: 6px; }
+  .fila-doble { display: flex; gap: 12px; }
+  .fila-doble > div { flex: 1; }
+  .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+  .modal-acciones button { width: auto; }
+
+  table.lineas { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  table.lineas th, table.lineas td { text-align: left; padding: 8px; border-bottom: 1px solid var(--color-border); }
+  table.lineas th { background: var(--color-bg); font-weight: 500; font-size: 12px; }
+  .quitar-linea { color: var(--color-danger); cursor: pointer; font-size: 12px; }
+  .resumen-suma { margin-top: 10px; font-size: 13px; padding: 10px 12px; border-radius: 8px; background: var(--color-bg); }
+  .resumen-suma.excede { background: #f8e3e2; color: var(--color-danger); }
+
+  @media (max-width: 600px) {
+    .fila-doble { flex-direction: column; gap: 0; }
+    .modal-overlay { padding: 0; align-items: stretch; }
+    .modal-card { max-width: 100%; max-height: 100vh; height: 100vh; border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="pantalla-login" class="auth-wrap">
+  <div class="auth-card">
+    <h1>CARO Control de Costos</h1>
+    <div class="subtitle">Clasificación de facturas en obra — HIDIVO</div>
+    <label for="login-email">Correo electrónico</label>
+    <input type="email" id="login-email" placeholder="tu@hidivo.com">
+    <label for="login-password">Contraseña</label>
+    <input type="password" id="login-password" placeholder="Tu contraseña">
+    <button id="btn-login">Iniciar sesión</button>
+    <div id="login-msg"></div>
+    <p style="font-size:12px;color:var(--color-text-muted);margin-top:16px;">
+      Usa el mismo correo y contraseña de CARO GdE. Si aún no tienes contraseña, acepta primero la invitación que te llegó por correo.
+    </p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="pantalla-app" class="hidden">
+  <div class="topbar">
+    <div>
+      <div class="brand">Control de Costos</div>
+      <div class="usuario" id="usuario-info"></div>
+    </div>
+    <button id="btn-logout">Salir</button>
+  </div>
+  <div class="contenido">
+    <div class="pills" id="filtro-pills">
+      <button data-estado="asignado" class="activa">Por clasificar</button>
+      <button data-estado="en_revision">Enviadas a revisión</button>
+      <button data-estado="clasificado">Aprobadas</button>
+    </div>
+    <div id="lista-facturas">Cargando...</div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://dogsqwnmuslhtfwabvta.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ3Nxd25tdXNsaHRmd2FidnRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjc3NjQsImV4cCI6MjA5NzkwMzc2NH0.KDhWAKU89qLQDtmlDGhZw9Mr1dWflqhpWEgEZNsSBas';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let mis_obras = [];
+let comprobantes = [];
+let filtro_estado = 'asignado';
+let plan_cuentas = [];
+let rubros_obra = [];
+let lineas_actuales = [];
+let comprobante_abierto = null;
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatearMoneda(valor) {
+  const numero = Number(valor) || 0;
+  return numero.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function mostrarMsg(id, texto, tipo) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = '<div class="msg ' + tipo + '">' + escapeHtml(texto) + '</div>';
+}
+
+function limpiarMsg(id) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = '';
+}
+
+function mostrarPantalla(cual) {
+  document.getElementById('pantalla-login').classList.toggle('hidden', cual !== 'login');
+  document.getElementById('pantalla-app').classList.toggle('hidden', cual !== 'app');
+}
+
+function closeModal() {
+  document.getElementById('modal-container').innerHTML = '';
+  comprobante_abierto = null;
+}
+
+// ---------------------- Autenticación ----------------------
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  limpiarMsg('login-msg');
+  if (!email || !password) {
+    mostrarMsg('login-msg', 'Ingresa tu correo y contraseña.', 'error');
+    return;
+  }
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  btn.disabled = false;
+  if (error) mostrarMsg('login-msg', 'Error: ' + (error.message || 'No se pudo iniciar sesión.'), 'error');
+});
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  await sb.auth.signOut();
+});
+
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_IN') iniciarApp();
+  else if (event === 'SIGNED_OUT') mostrarPantalla('login');
+});
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await iniciarApp();
+  else mostrarPantalla('login');
+}
+
+// ---------------------- App principal ----------------------
+
+async function iniciarApp() {
+  mostrarPantalla('app');
+  const { data: { user } } = await sb.auth.getUser();
+
+  const { data: perfil } = await sb.from('perfiles').select('nombre_completo').eq('id', user.id).single();
+  const { data: obras } = await sb.from('obras')
+    .select('id, codigo, nombre')
+    .eq('superintendente_id', user.id)
+    .eq('estado', 'activa');
+  mis_obras = obras || [];
+
+  document.getElementById('usuario-info').textContent =
+    (perfil?.nombre_completo || user.email) + ' · ' +
+    (mis_obras.length ? mis_obras.map(o => o.codigo).join(', ') : 'Sin obras asignadas');
+
+  if (!plan_cuentas.length) {
+    const { data: cuentas } = await sb.from('plan_cuentas').select('*').eq('imputable', true).eq('activo', true).order('codigo');
+    plan_cuentas = cuentas || [];
+  }
+
+  await cargarComprobantes();
+}
+
+document.getElementById('filtro-pills').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  document.querySelectorAll('#filtro-pills button').forEach(b => b.classList.remove('activa'));
+  btn.classList.add('activa');
+  filtro_estado = btn.dataset.estado;
+  pintarLista();
+});
+
+async function cargarComprobantes() {
+  if (!mis_obras.length) {
+    document.getElementById('lista-facturas').innerHTML =
+      '<p style="color:var(--color-text-muted);">No tienes obras asignadas. Pide al administrador que te asigne como superintendente de una obra en CARO GdE.</p>';
+    return;
+  }
+  const obraIds = mis_obras.map(o => o.id);
+  const { data, error } = await sb.from('sri_comprobantes')
+    .select('*')
+    .in('obra_id', obraIds)
+    .in('estado', ['asignado', 'en_revision', 'clasificado'])
+    .order('fecha_emision', { ascending: false });
+  if (error) {
+    document.getElementById('lista-facturas').innerHTML = '<p class="msg error">Error: ' + escapeHtml(error.message) + '</p>';
+    return;
+  }
+  comprobantes = data || [];
+  pintarLista();
+}
+
+function pintarLista() {
+  const lista = comprobantes.filter(c => c.estado === filtro_estado);
+  const cont = document.getElementById('lista-facturas');
+  if (!lista.length) {
+    const textos = {
+      asignado: 'No tienes facturas pendientes de clasificar. ¡Al día!',
+      en_revision: 'No hay facturas esperando revisión del administrador.',
+      clasificado: 'Aún no hay facturas aprobadas.'
+    };
+    cont.innerHTML = '<p style="color:var(--color-text-muted);">' + textos[filtro_estado] + '</p>';
+    return;
+  }
+  cont.innerHTML = lista.map(c => {
+    const obra = mis_obras.find(o => o.id === c.obra_id);
+    const devuelta = c.estado === 'asignado' && c.observacion_admin;
+    return `
+      <div class="factura-card" onclick="abrirFactura('${c.id}')">
+        <div class="fila1">
+          <div>
+            <div class="proveedor">${escapeHtml(c.razon_social_contraparte) || 'Sin proveedor'}</div>
+            <div class="meta">
+              ${escapeHtml(c.tipo_comprobante) || 'Comprobante'} ${escapeHtml(c.serie_comprobante) || ''} · ${c.fecha_emision || ''}<br>
+              Obra: ${obra ? escapeHtml(obra.codigo) + ' — ' + escapeHtml(obra.nombre) : '—'}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div class="monto">$${formatearMoneda(c.valor_sin_impuestos)}</div>
+            <div class="meta">sin IVA</div>
+            ${devuelta ? '<span class="badge devuelta">Devuelta</span>' : '<span class="badge ' + c.estado + '">' + (c.estado === 'asignado' ? 'Por clasificar' : c.estado === 'en_revision' ? 'En revisión' : 'Aprobada') + '</span>'}
+          </div>
+        </div>
+        ${devuelta ? '<div class="obs-admin"><strong>Observación del administrador:</strong> ' + escapeHtml(c.observacion_admin) + '</div>' : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// ---------------------- Clasificación ----------------------
+
+async function abrirFactura(id) {
+  const c = comprobantes.find(x => x.id === id);
+  if (!c) return;
+  comprobante_abierto = c;
+
+  const { data: rubros } = await sb.from('obra_rubros').select('id, codigo, descripcion').eq('obra_id', c.obra_id).order('codigo');
+  rubros_obra = rubros || [];
+
+  const { data: borradores } = await sb.from('costos_borrador').select('*').eq('sri_comprobante_id', id).order('created_at');
+  lineas_actuales = (borradores || []).map(b => ({
+    rubro_id: b.rubro_id, cuenta_id: b.cuenta_id, monto: Number(b.monto), descripcion: b.descripcion || ''
+  }));
+
+  const soloLectura = c.estado !== 'asignado';
+  const obra = mis_obras.find(o => o.id === c.obra_id);
+
+  const fasesAgrupadas = {};
+  plan_cuentas.forEach(cta => {
+    let fase = 'Otros';
+    if (cta.codigo.startsWith('5.1.01')) fase = 'Materiales';
+    else if (cta.codigo.startsWith('5.1.02')) fase = 'Mano de obra';
+    else if (cta.codigo.startsWith('5.1.03')) fase = 'Equipos';
+    else if (cta.codigo.startsWith('5.1.04')) fase = 'Transporte';
+    else if (cta.codigo.startsWith('5.1.05')) fase = 'Subcontratos';
+    else if (cta.codigo.startsWith('5.2')) fase = 'Indirectos';
+    else if (cta.codigo.startsWith('5.3')) fase = 'Fiscalización';
+    else if (cta.codigo.startsWith('5.4')) fase = 'Diseño';
+    else if (cta.codigo.startsWith('6')) fase = 'Gastos';
+    if (!fasesAgrupadas[fase]) fasesAgrupadas[fase] = [];
+    fasesAgrupadas[fase].push(cta);
+  });
+
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target === this) closeModal()">
+      <div class="modal-card">
+        <h3>${escapeHtml(c.tipo_comprobante) || 'Comprobante'} ${escapeHtml(c.serie_comprobante) || ''}</h3>
+        <p style="font-size:13px;color:var(--color-text-muted);">
+          <strong>${escapeHtml(c.razon_social_contraparte) || ''}</strong> (${escapeHtml(c.ruc_contraparte) || ''})<br>
+          ${c.fecha_emision || ''} · Obra: ${obra ? escapeHtml(obra.codigo) : '—'}<br>
+          Subtotal sin IVA: <strong>$${formatearMoneda(c.valor_sin_impuestos)}</strong> · IVA: $${formatearMoneda(c.iva)} · Total: $${formatearMoneda(c.importe_total)}
+        </p>
+        ${c.observacion_admin && !soloLectura ? '<div class="obs-admin"><strong>Observación del administrador:</strong> ' + escapeHtml(c.observacion_admin) + '</div>' : ''}
+
+        ${!soloLectura ? `
+          <div class="fila-doble">
+            <div>
+              <label>Rubro</label>
+              <select id="linea-rubro">
+                <option value="">Costo general de obra (sin rubro)</option>
+                ${rubros_obra.map(r => '<option value="' + r.id + '">' + escapeHtml(r.codigo) + ' — ' + escapeHtml(r.descripcion) + '</option>').join('')}
+              </select>
+            </div>
+            <div>
+              <label>Cuenta (tipo de recurso)</label>
+              <select id="linea-cuenta">
+                <option value="">Selecciona...</option>
+                ${Object.entries(fasesAgrupadas).map(([fase, ctas]) =>
+                  '<optgroup label="' + fase + '">' + ctas.map(x => '<option value="' + x.id + '">' + x.codigo + ' — ' + escapeHtml(x.nombre) + '</option>').join('') + '</optgroup>'
+                ).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="fila-doble">
+            <div>
+              <label>Monto (sin IVA)</label>
+              <input type="number" step="0.01" id="linea-monto" placeholder="0.00">
+            </div>
+            <div>
+              <label>Descripción (opcional)</label>
+              <input type="text" id="linea-descripcion" placeholder="ej. Cemento 100 sacos">
+            </div>
+          </div>
+          <button class="btn-secundario" onclick="agregarLinea()">+ Agregar línea</button>
+        ` : ''}
+
+        <table class="lineas">
+          <thead><tr><th>Rubro</th><th>Cuenta</th><th>Monto</th><th></th></tr></thead>
+          <tbody id="tabla-lineas"></tbody>
+        </table>
+        <div class="resumen-suma" id="resumen-suma"></div>
+
+        <div id="clasif-msg"></div>
+        <div class="modal-acciones">
+          <button class="btn-secundario" onclick="closeModal()">Cerrar</button>
+          ${!soloLectura ? '<button onclick="enviarARevision()">Enviar a revisión</button>' : ''}
+          ${c.estado === 'en_revision' ? '<button class="btn-secundario" onclick="retirarDeRevision()">Retirar para editar</button>' : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  pintarLineas(soloLectura);
+}
+
+function pintarLineas(soloLectura) {
+  const tbody = document.getElementById('tabla-lineas');
+  if (!lineas_actuales.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--color-text-muted);">Sin líneas aún.</td></tr>';
+  } else {
+    tbody.innerHTML = lineas_actuales.map((l, i) => {
+      const rubro = rubros_obra.find(r => r.id === l.rubro_id);
+      const cuenta = plan_cuentas.find(c => c.id === l.cuenta_id);
+      return `
+        <tr>
+          <td>${rubro ? escapeHtml(rubro.codigo) : '<em>General</em>'}${l.descripcion ? '<br><span style="font-size:11px;color:var(--color-text-muted);">' + escapeHtml(l.descripcion) + '</span>' : ''}</td>
+          <td>${cuenta ? cuenta.codigo + ' ' + escapeHtml(cuenta.nombre) : '—'}</td>
+          <td>$${formatearMoneda(l.monto)}</td>
+          <td>${soloLectura ? '' : '<span class="quitar-linea" onclick="quitarLinea(' + i + ')">Quitar</span>'}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  const suma = lineas_actuales.reduce((acc, l) => acc + l.monto, 0);
+  const subtotal = Number(comprobante_abierto?.valor_sin_impuestos || 0);
+  const diferencia = subtotal - suma;
+  const resumen = document.getElementById('resumen-suma');
+  resumen.className = 'resumen-suma' + (diferencia < -0.009 ? ' excede' : '');
+  resumen.innerHTML = 'Clasificado: <strong>$' + formatearMoneda(suma) + '</strong> de $' + formatearMoneda(subtotal) +
+    (diferencia < -0.009 ? ' — <strong>excede el subtotal</strong>' : (Math.abs(diferencia) > 0.009 ? ' — falta $' + formatearMoneda(diferencia) : ' — completo ✓'));
+}
+
+function agregarLinea() {
+  limpiarMsg('clasif-msg');
+  const cuentaId = document.getElementById('linea-cuenta').value;
+  const monto = parseFloat(document.getElementById('linea-monto').value);
+  if (!cuentaId) { mostrarMsg('clasif-msg', 'Selecciona la cuenta.', 'error'); return; }
+  if (!monto || monto <= 0) { mostrarMsg('clasif-msg', 'Ingresa un monto válido.', 'error'); return; }
+
+  lineas_actuales.push({
+    rubro_id: document.getElementById('linea-rubro').value || null,
+    cuenta_id: cuentaId,
+    monto: Math.round(monto * 100) / 100,
+    descripcion: document.getElementById('linea-descripcion').value.trim()
+  });
+  document.getElementById('linea-monto').value = '';
+  document.getElementById('linea-descripcion').value = '';
+  pintarLineas(false);
+}
+
+function quitarLinea(indice) {
+  lineas_actuales.splice(indice, 1);
+  pintarLineas(false);
+}
+
+async function enviarARevision() {
+  limpiarMsg('clasif-msg');
+  if (!lineas_actuales.length) {
+    mostrarMsg('clasif-msg', 'Agrega al menos una línea antes de enviar.', 'error');
+    return;
+  }
+  const suma = lineas_actuales.reduce((acc, l) => acc + l.monto, 0);
+  const subtotal = Number(comprobante_abierto.valor_sin_impuestos || 0);
+  if (suma - subtotal > 0.009) {
+    mostrarMsg('clasif-msg', 'La suma de las líneas ($' + formatearMoneda(suma) + ') excede el subtotal sin IVA de la factura ($' + formatearMoneda(subtotal) + ').', 'error');
+    return;
+  }
+
+  const { data: { user } } = await sb.auth.getUser();
+  const id = comprobante_abierto.id;
+
+  // Reemplaza cualquier borrador previo por las líneas actuales
+  await sb.from('costos_borrador').delete().eq('sri_comprobante_id', id);
+  const filas = lineas_actuales.map(l => ({
+    sri_comprobante_id: id,
+    obra_id: comprobante_abierto.obra_id,
+    rubro_id: l.rubro_id,
+    cuenta_id: l.cuenta_id,
+    monto: l.monto,
+    descripcion: l.descripcion || null,
+    creado_por: user.id
+  }));
+  const { error: errIns } = await sb.from('costos_borrador').insert(filas);
+  if (errIns) {
+    mostrarMsg('clasif-msg', 'Error guardando: ' + errIns.message, 'error');
+    return;
+  }
+  const { error: errUpd } = await sb.from('sri_comprobantes')
+    .update({ estado: 'en_revision', observacion_admin: null })
+    .eq('id', id);
+  if (errUpd) {
+    mostrarMsg('clasif-msg', 'Error actualizando estado: ' + errUpd.message, 'error');
+    return;
+  }
+  closeModal();
+  await cargarComprobantes();
+}
+
+async function retirarDeRevision() {
+  const { error } = await sb.from('sri_comprobantes')
+    .update({ estado: 'asignado' })
+    .eq('id', comprobante_abierto.id);
+  if (error) {
+    mostrarMsg('clasif-msg', 'Error: ' + error.message, 'error');
+    return;
+  }
+  closeModal();
+  await cargarComprobantes();
+}
+
+init();
+</script>
+</body>
+</html>
