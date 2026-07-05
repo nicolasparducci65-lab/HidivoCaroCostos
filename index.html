@@ -296,13 +296,32 @@ async function abrirFactura(id) {
   if (!c) return;
   comprobante_abierto = c;
 
-  const { data: rubros } = await sb.from('obra_rubros').select('id, codigo, descripcion').eq('obra_id', c.obra_id).order('codigo');
+  const [{ data: rubros }, { data: borradores }, { data: itemsFactura }] = await Promise.all([
+    sb.from('obra_rubros').select('id, codigo, descripcion').eq('obra_id', c.obra_id).order('codigo'),
+    sb.from('costos_borrador').select('*').eq('sri_comprobante_id', id).order('created_at'),
+    sb.from('sri_comprobante_items').select('*').eq('sri_comprobante_id', id).order('orden')
+  ]);
   rubros_obra = rubros || [];
-
-  const { data: borradores } = await sb.from('costos_borrador').select('*').eq('sri_comprobante_id', id).order('created_at');
   lineas_actuales = (borradores || []).map(b => ({
     rubro_id: b.rubro_id, cuenta_id: b.cuenta_id, monto: Number(b.monto), descripcion: b.descripcion || ''
   }));
+
+  const bloqueItems = (itemsFactura && itemsFactura.length) ? `
+    <label style="margin-top:12px;">¿Qué contiene esta factura? (${itemsFactura.length} ítem${itemsFactura.length > 1 ? 's' : ''})</label>
+    <table class="lineas">
+      <thead><tr><th>Descripción</th><th>Cant.</th><th>P. unit.</th><th>Total</th></tr></thead>
+      <tbody>
+        ${itemsFactura.map(it => `
+          <tr>
+            <td>${escapeHtml(it.descripcion)}</td>
+            <td>${Number(it.cantidad || 0)}</td>
+            <td>$${formatearMoneda(it.precio_unitario)}</td>
+            <td>$${formatearMoneda(it.total_sin_impuesto)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : '<p style="font-size:12px;color:var(--color-text-muted);margin-top:10px;">Detalle de ítems no disponible (la factura se importó sin su XML).</p>';
 
   const soloLectura = c.estado !== 'asignado';
   const obra = mis_obras.find(o => o.id === c.obra_id);
@@ -333,6 +352,7 @@ async function abrirFactura(id) {
           Subtotal sin IVA: <strong>$${formatearMoneda(c.valor_sin_impuestos)}</strong> · IVA: $${formatearMoneda(c.iva)} · Total: $${formatearMoneda(c.importe_total)}
         </p>
         ${c.observacion_admin && !soloLectura ? '<div class="obs-admin"><strong>Observación del administrador:</strong> ' + escapeHtml(c.observacion_admin) + '</div>' : ''}
+        ${bloqueItems}
 
         ${!soloLectura ? `
           <div class="fila-doble">
